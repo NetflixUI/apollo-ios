@@ -1,7 +1,7 @@
 import OrderedCollections
 import CryptoKit
 
-class IR {
+final class IR {
 
   let compilationResult: CompilationResult
 
@@ -85,7 +85,7 @@ class IR {
   ///
   /// Multiple `SelectionSet`s may select fields on the same `Entity`. All `SelectionSet`s that will
   /// be selected on the same object share the same `Entity`.
-  class Entity {
+  final class Entity {
 
     /// Represents the location within a GraphQL definition (operation or fragment) of an `Entity`.
     struct Location: Hashable {
@@ -170,7 +170,7 @@ class IR {
     }
   }
 
-  class Operation {
+  final class Operation {
     let definition: CompilationResult.OperationDefinition
 
     /// The root field of the operation. This field must be the root query, mutation, or
@@ -218,7 +218,7 @@ class IR {
     }
   }
 
-  class NamedFragment: Hashable, CustomDebugStringConvertible {
+  final class NamedFragment: Hashable, CustomDebugStringConvertible {
     let definition: CompilationResult.FragmentDefinition
     let rootField: EntityField
 
@@ -264,7 +264,7 @@ class IR {
 
   /// Represents an Inline Fragment that has been "spread into" another SelectionSet using the
   /// spread operator (`...`).
-  class InlineFragmentSpread: Hashable, CustomDebugStringConvertible {
+  final class InlineFragmentSpread: Hashable, CustomDebugStringConvertible {
     /// The `SelectionSet` representing the inline fragment that has been "spread into" its
     /// enclosing operation/fragment.
     let selectionSet: SelectionSet
@@ -310,7 +310,7 @@ class IR {
   ///
   /// While a `NamedFragment` can be shared between operations, a `NamedFragmentSpread` represents a
   /// `NamedFragment` included in a specific operation.
-  class NamedFragmentSpread: Hashable, CustomDebugStringConvertible {
+  final class NamedFragmentSpread: Hashable, CustomDebugStringConvertible {
 
     /// The `NamedFragment` that this fragment refers to.
     ///

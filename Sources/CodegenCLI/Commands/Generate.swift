@@ -77,7 +77,8 @@ public struct Generate: ParsableCommand {
     try codegenProvider.build(
       with: configuration,
       withRootURL: rootOutputURL(for: inputs),
-      itemsToGenerate: itemsToGenerate
+      itemsToGenerate: itemsToGenerate,
+      computeOperationIdentifier: nil
     )
   }
 
