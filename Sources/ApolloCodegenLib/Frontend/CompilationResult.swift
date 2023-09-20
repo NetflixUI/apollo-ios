@@ -1,7 +1,7 @@
 import JavaScriptCore
 
 /// The output of the frontend compiler.
-public class CompilationResult: JavaScriptObject {
+public final class CompilationResult: JavaScriptObject {
   private enum Constants {
     static let LocalCacheMutationDirectiveName = "apollo_client_ios_localCacheMutation"
   }
@@ -15,7 +15,7 @@ public class CompilationResult: JavaScriptObject {
 
   lazy var schemaDocumentation: String? = self["schemaDocumentation"]
   
-  public class RootTypeDefinition: JavaScriptObject {
+  public final class RootTypeDefinition: JavaScriptObject {
     lazy var queryType: GraphQLNamedType = self["queryType"]
     
     lazy var mutationType: GraphQLNamedType? = self["mutationType"]
@@ -23,7 +23,7 @@ public class CompilationResult: JavaScriptObject {
     lazy var subscriptionType: GraphQLNamedType? = self["subscriptionType"]
   }
   
-  public class OperationDefinition: JavaScriptObject, Hashable {
+  public final class OperationDefinition: JavaScriptObject, Hashable {
     lazy var name: String = self["name"]
     
     lazy var operationType: OperationType = self["operationType"]
@@ -94,7 +94,7 @@ public class CompilationResult: JavaScriptObject {
     }
   }
   
-  public class VariableDefinition: JavaScriptObject {
+  public final class VariableDefinition: JavaScriptObject {
     lazy var name: String = self["name"]
     
     lazy var type: GraphQLType = self["type"]
@@ -102,7 +102,7 @@ public class CompilationResult: JavaScriptObject {
     lazy var defaultValue: GraphQLValue? = self["defaultValue"]
   }
   
-  public class FragmentDefinition: JavaScriptObject, Hashable {
+  public final class FragmentDefinition: JavaScriptObject, Hashable {
     lazy var name: String = self["name"]
     
     lazy var type: GraphQLCompositeType = self["typeCondition"]
@@ -132,7 +132,7 @@ public class CompilationResult: JavaScriptObject {
     }
   }
   
-  public class SelectionSet: JavaScriptWrapper, Hashable, CustomDebugStringConvertible {
+  public final class SelectionSet: JavaScriptWrapper, Hashable, CustomDebugStringConvertible {
     lazy var parentType: GraphQLCompositeType = self["parentType"]
     
     lazy var selections: [Selection] = self["selections"]
@@ -165,7 +165,7 @@ public class CompilationResult: JavaScriptObject {
     }
   }
 
-  public class InlineFragment: JavaScriptObject, Hashable {
+  public final class InlineFragment: JavaScriptObject, Hashable {
     lazy var selectionSet: SelectionSet = self["selectionSet"]
 
     lazy var inclusionConditions: [InclusionCondition]? = self["inclusionConditions"]
@@ -187,7 +187,7 @@ public class CompilationResult: JavaScriptObject {
 
   /// Represents an individual selection that includes a named fragment in a selection set.
   /// (ie. `...FragmentName`)
-  public class FragmentSpread: JavaScriptObject, Hashable {
+  public final class FragmentSpread: JavaScriptObject, Hashable {
     lazy var fragment: FragmentDefinition = self["fragment"]
 
     lazy var inclusionConditions: [InclusionCondition]? = self["inclusionConditions"]
@@ -253,7 +253,7 @@ public class CompilationResult: JavaScriptObject {
     }
   }
   
-  public class Field: JavaScriptWrapper, Hashable, CustomDebugStringConvertible {
+  public final class Field: JavaScriptWrapper, Hashable, CustomDebugStringConvertible {
     lazy var name: String = self["name"]!
     
     lazy var alias: String? = self["alias"]
@@ -330,7 +330,7 @@ public class CompilationResult: JavaScriptObject {
     }
   }
   
-  public class Argument: JavaScriptObject, Hashable {
+  public final class Argument: JavaScriptObject, Hashable {
     lazy var name: String = self["name"]
 
     lazy var type: GraphQLType = self["type"]
@@ -352,7 +352,7 @@ public class CompilationResult: JavaScriptObject {
     }
   }
 
-  public class Directive: JavaScriptObject, Hashable {
+  public final class Directive: JavaScriptObject, Hashable {
     lazy var name: String = self["name"]
 
     lazy var arguments: [Argument]? = self["arguments"]

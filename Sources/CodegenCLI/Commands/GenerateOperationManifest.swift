@@ -44,7 +44,8 @@ public struct GenerateOperationManifest: ParsableCommand {
     try codegenProvider.build(
       with: configuration,
       withRootURL: rootOutputURL(for: inputs),
-      itemsToGenerate: [.operationManifest]
+      itemsToGenerate: [.operationManifest],
+      computeOperationIdentifier: nil
     )
   }
 

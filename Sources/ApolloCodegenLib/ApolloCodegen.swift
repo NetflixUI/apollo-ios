@@ -22,6 +22,7 @@ public class ApolloCodegen {
     case invalidSchemaName(_ name: String, message: String)
     case targetNameConflict(name: String)
     case typeNameConflict(name: String, conflictingName: String, containingObject: String)
+    case failedToComputeOperationIdentifier(type: String, name: String, error: Swift.Error)
 
     public var errorDescription: String? {
       switch self {
@@ -64,6 +65,8 @@ public class ApolloCodegen {
         Recommend using a field alias for one of these fields to resolve this conflict. \
         For more info see: https://www.apollographql.com/docs/ios/troubleshooting/codegen-troubleshooting#typenameconflict
         """
+      case let .failedToComputeOperationIdentifier(type, name, error):
+        return "Received failure while computing operation identifier for \(type) named '\(name)', Error: \(error.localizedDescription)"
       }
     }
   }
@@ -91,6 +94,9 @@ public class ApolloCodegen {
     
   }
 
+  /// A `nil` result is treated as a cancellation, and the default operationIdentifier is used
+  public typealias ComputeOperationIdentifier = (any IROperation, @escaping (Result<String, Swift.Error>?) -> Void) -> Void
+
   /// Executes the code generation engine with a specified configuration.
   ///
   /// - Parameters:
@@ -103,16 +109,18 @@ public class ApolloCodegen {
   public static func build(
     with configuration: ApolloCodegenConfiguration,
     withRootURL rootURL: URL? = nil,
-    itemsToGenerate: ItemsToGenerate = [.code]
+    itemsToGenerate: ItemsToGenerate = [.code],
+    computeOperationIdentifier: ComputeOperationIdentifier? = nil
   ) throws {
-    try build(with: configuration, rootURL: rootURL, itemsToGenerate: itemsToGenerate)
+    try build(with: configuration, rootURL: rootURL, itemsToGenerate: itemsToGenerate, computeOperationIdentifier: computeOperationIdentifier)
   }
 
   internal static func build(
     with configuration: ApolloCodegenConfiguration,
     rootURL: URL? = nil,
     fileManager: ApolloFileManager = .default,
-    itemsToGenerate: ItemsToGenerate
+    itemsToGenerate: ItemsToGenerate,
+    computeOperationIdentifier: ComputeOperationIdentifier? = nil
   ) throws {
 
     let configContext = ConfigurationContext(
@@ -131,28 +139,33 @@ public class ApolloCodegen {
 
     let ir = IR(compilationResult: compilationResult)
 
-    var existingGeneratedFilePaths: Set<String>?
-
-    if itemsToGenerate.contains(.code) && configuration.options.pruneGeneratedFiles {
-      existingGeneratedFilePaths = try findExistingGeneratedFilePaths(
+    let generate: () throws -> Void = {
+      try generateFiles(
+        compilationResult: compilationResult,
+        ir: ir,
         config: configContext,
-        fileManager: fileManager
+        fileManager: fileManager,
+        itemsToGenerate: itemsToGenerate,
+        computeOperationIdentifier: computeOperationIdentifier
       )
     }
 
-    try generateFiles(
-      compilationResult: compilationResult,
-      ir: ir,
-      config: configContext,
-      fileManager: fileManager,
-      itemsToGenerate: itemsToGenerate
-    )
-
-    if var existingGeneratedFilePaths {
+    let generateWithPruning: () throws -> Void = {
+      var existingGeneratedFilePaths = try findExistingGeneratedFilePaths(
+        config: configContext,
+        fileManager: fileManager
+      )
+      try generate()
       try deleteExtraneousGeneratedFiles(
         from: &existingGeneratedFilePaths,
         afterCodeGenerationUsing: fileManager
       )
+    }
+
+    if itemsToGenerate.contains(.code) && configuration.options.pruneGeneratedFiles {
+      try generateWithPruning()
+    } else {
+      try generate()
     }
   }
 
@@ -412,7 +425,8 @@ public class ApolloCodegen {
     ir: IR,
     config: ConfigurationContext,
     fileManager: ApolloFileManager = .default,
-    itemsToGenerate: ItemsToGenerate
+    itemsToGenerate: ItemsToGenerate,
+    computeOperationIdentifier: ComputeOperationIdentifier? = nil
   ) throws {
 
     if itemsToGenerate.contains(.code) {
@@ -431,9 +445,40 @@ public class ApolloCodegen {
       operationIDsFileGenerator = OperationManifestFileGenerator(config: config)
     }
 
-    for operation in compilationResult.operations {
+    let irOperations = compilationResult.operations.map { ir.build(operation: $0) }
+    var results = [Result<String, Swift.Error>?](repeating: nil, count: irOperations.count)
+
+    if let computeOperationIdentifier {
+      let dispatchGroup = DispatchGroup()
+      DispatchQueue.concurrentPerform(iterations: irOperations.count) { index in
+        let irOperation = irOperations[index]
+        var sources: [String] = [irOperation.definition.source.convertedToSingleLine()]
+        for fragment in irOperation.referencedFragments {
+          sources.append(fragment.definition.source.convertedToSingleLine())
+        }
+        dispatchGroup.enter()
+        computeOperationIdentifier(irOperation) { result in
+          results[index] = result
+          dispatchGroup.leave()
+        }
+      }
+      dispatchGroup.wait()
+    }
+
+    for (index, irOperation) in irOperations.enumerated() {
       try autoreleasepool {
-        let irOperation = ir.build(operation: operation)
+        if let result = results[index] {
+          switch result {
+          case .success(let operationIdentifier):
+            irOperation.operationIdentifier = operationIdentifier
+          case .failure(let error):
+            throw Error.failedToComputeOperationIdentifier(
+              type: irOperation.definition.operationType.rawValue,
+              name: irOperation.definition.name,
+              error: error
+            )
+          }
+        }
 
         if itemsToGenerate.contains(.code) {
           try validateTypeConflicts(for: irOperation.rootField.selectionSet, with: config, in: irOperation.definition.name)
@@ -609,6 +654,26 @@ public class ApolloCodegen {
     }
   }
 
+}
+
+public protocol IROperation: AnyObject {
+  var filePath: String { get }
+  var name: String { get }
+  var source: String { get }
+  var type: CompilationResult.OperationType { get }
+}
+
+extension IR.Operation: IROperation {
+  public var filePath: String { definition.filePath }
+  public var name: String { definition.name }
+  public var source: String {
+    var sources: [String] = [definition.source.convertedToSingleLine()]
+    for fragment in referencedFragments {
+      sources.append(fragment.definition.source.convertedToSingleLine())
+    }
+    return sources.joined(separator: "\n")
+  }
+  public var type: CompilationResult.OperationType { definition.operationType }
 }
 
 #endif
